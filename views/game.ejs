@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Tic Tac Toe - Jogo</title>
+  <link rel="stylesheet" href="/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <p>Jogador X: <%= game.playerX %> <%= game.mode === 'multiplayer' ? 'vs Jogador O: ' + (game.playerO || 'Aguardando...') : 'vs AI' %></p>
+    <p>Turno atual: <span id="currentTurn"><%= game.currentPlayer === 'X' ? game.playerX : (game.playerO || 'AI') %></span></p>
+    
+    <div class="board">
+      <% for(let i = 0; i < 9; i++) { %>
+        <form action="/move/<%= gameId %>" method="post" class="cell">
+          <input type="hidden" name="position" value="<%= i %>">
+          <button type="submit" <%= game.board[i] || game.status === 'finished' ? 'disabled' : '' %>>
+            <%= game.board[i] || ' ' %>
+          </button>
+        </form>
+      <% } %>
+    </div>
+
+    <% if (message) { %>
+      <p><%= message %></p>
+      <a href="/restart/<%= gameId %>" class="button">Jogar novamente</a>
+    <% } else if (game.mode === 'multiplayer' && !game.playerO) { %>
+      <p class="status">Compartilhe este ID: <%= gameId %></p>
+    <% } %>
+
+    <% if (game.mode === 'multiplayer') { %>
+      <div class="chat-container">
+        <h2>Chat</h2>
+        <div id="chat-messages"></div>
+        <input type="text" id="chat-input" placeholder="Digite uma mensagem...">
+        <button id="chat-send">Enviar</button>
+      </div>
+    <% } %>
+  </div>
+
+  <script>
+    const ws = new WebSocket(`ws://localhost:3000/game/${'<%= gameId %>'}?nick=${'<%= nick %>'}`);
+    const myNick = '<%= nick %>';
+
+    ws.onmessage = function(event) {
+      const data = JSON.parse(event.data);
+      if (data.type === 'game') {
+        const cells = document.querySelectorAll('.cell button');
+        
+        data.board.forEach((value, index) => {
+          cells[index].textContent = value || ' ';
+          cells[index].disabled = !!value || data.status === 'finished' || 
+            (data.status === 'playing' && 
+             ((data.currentPlayer === 'X' && myNick !== data.playerX) || 
+              (data.currentPlayer === 'O' && myNick !== data.playerO)));
+        });
+
+        document.getElementById('currentTurn').textContent = 
+          data.currentPlayer === 'X' ? data.playerX : (data.playerO || 'AI');
+
+        const messageP = document.querySelector('p:not(#currentTurn):not(.status)');
+        if (data.message) {
+          if (!messageP) {
+            const newP = document.createElement('p');
+            newP.textContent = data.message;
+            document.querySelector('.container').insertBefore(newP, document.querySelector('.chat-container') || null);
+            
+            const restartLink = document.createElement('a');
+            restartLink.href = `/restart/${'<%= gameId %>'}`;
+            restartLink.className = 'button';
+            restartLink.textContent = 'Jogar novamente';
+            document.querySelector('.container').insertBefore(restartLink, document.querySelector('.chat-container') || null);
+          } else {
+            messageP.textContent = data.message;
+          }
+        } else if (messageP) {
+          messageP.remove();
+          const restartLink = document.querySelector('a.button');
+          if (restartLink) restartLink.remove();
+        }
+      } else if (data.type === 'chat') {
+        const chatMessages = document.getElementById('chat-messages');
+        const messageP = document.createElement('p');
+        messageP.textContent = `${data.sender}: ${data.message}`;
+        chatMessages.appendChild(messageP);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
+    };
+
+    ws.on('ping', () => ws.pong());
+
+    document.getElementById('chat-send')?.addEventListener('click', () => {
+      const input = document.getElementById('chat-input');
+      if (input.value.trim()) {
+        ws.send(JSON.stringify({
+          type: 'chat',
+          message: input.value.trim()
+        }));
+        input.value = '';
+      }
+    });
+
+    document.getElementById('chat-input')?.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && e.target.value.trim()) {
+        ws.send(JSON.stringify({
+          type: 'chat',
+          message: e.target.value.trim()
+        }));
+        e.target.value = '';
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Tic Tac Toe - Menu</title>
+  <link rel="stylesheet" href="/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <div class="menu-layout">
+      <div class="main-cards">
+        <div class="card welcome-card">
+          <p>Bem-vindo, <%= nick %>!</p>
+        </div>
+
+        <div class="card">
+          <h2>Jogar contra AI</h2>
+          <form action="/start" method="post">
+            <input type="hidden" name="mode" value="single">
+            <button type="submit">Jogar</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <h2>Criar Partida Online</h2>
+          <form action="/start" method="post">
+            <input type="hidden" name="mode" value="multiplayer">
+            <button type="submit">Criar</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <h2>Modo Torneio</h2>
+          <form action="/tournament" method="post">
+            <button type="submit">Entrar</button>
+          </form>
+        </div>
+
+
+
+        <% if (error) { %>
+          <div class="card error-card">
+            <p class="error"><%= error %></p>
+          </div>
+        <% } %>
+        <% if (message) { %>
+          <div class="card status-card">
+            <p class="status"><%= message %></p>
+          </div>
+        <% } %>
+      </div>
+      <div class="card rooms-card">
+        <h2>Salas Disponíveis</h2>
+        <% if (typeof availableGames !== 'undefined' && availableGames.length > 0) { %>
+          <ul>
+            <% availableGames.forEach(game => { %>
+              <li>
+                <span>Jogador X: <%= game.playerX %></span>
+                <form action="/join/<%= game.gameId %>" method="post" style="display: inline;">
+                  <button type="submit">Entrar</button>
+                </form>
+              </li>
+            <% }) %>
+          </ul>
+        <% } else { %>
+          <p class="status">Nenhuma sala disponível.</p>
+        <% } %>
+      </div>
+      <div class="leaderboard-column">
+        <div class="card leaderboard-card">
+          <h2>Leaderboard</h2>
+          <% if (!players || Object.keys(players).length === 0) { %>
+            <p class="status">Nenhum jogador registrado ainda.</p>
+          <% } else { %>
+            <table>
+              <tr><th>Jogador</th><th>Vitórias</th><th>Tempo (s)</th><th>Pontos</th></tr>
+              <% Object.entries(players).sort((a, b) => b[1].points - a[1].points).slice(0, 10).forEach(([nick, stats]) => { %>
+                <tr><td><%= nick %></td><td><%= stats.wins %></td><td><%= Math.round(stats.totalTime || 0) %></td><td><%= stats.points %></td></tr>
+              <% }) %>
+            </table>
+          <% } %>
+        </div>
+        
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    setInterval(() => {
+      fetch('/menu', { method: 'POST' })
+        .then(response => response.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(html, 'text/html');
+          
+          // Atualizar Salas Disponíveis
+          const newRooms = doc.querySelector('.rooms-card ul');
+          if (newRooms) {
+            document.querySelector('.rooms-card ul')?.replaceWith(newRooms);
+          } else {
+            const noRoomsP = document.createElement('p');
+            noRoomsP.className = 'status';
+            noRoomsP.textContent = 'Nenhuma sala disponível.';
+            const oldP = document.querySelector('.rooms-card p.status');
+            if (oldP) oldP.replaceWith(noRoomsP);
+          }
+
+          // Atualizar Leaderboard
+          const newLeaderboardTable = doc.querySelector('.leaderboard-card table');
+          const newNoPlayersP = doc.querySelector('.leaderboard-card p.status');
+          const oldTable = document.querySelector('.leaderboard-card table');
+          const oldNoPlayersP = document.querySelector('.leaderboard-card p.status');
+
+          if (newLeaderboardTable) {
+            if (oldTable) oldTable.replaceWith(newLeaderboardTable);
+            else document.querySelector('.leaderboard-card').appendChild(newLeaderboardTable);
+            if (oldNoPlayersP) oldNoPlayersP.remove();
+          } else if (newNoPlayersP) {
+            if (oldNoPlayersP) oldNoPlayersP.replaceWith(newNoPlayersP);
+            else document.querySelector('.leaderboard-card').insertBefore(newNoPlayersP, oldTable || null);
+            if (oldTable) oldTable.remove();
+          }
+        });
+    }, 5000);
+  </script>
+</body>
+</html>
