@@ -9,10 +9,10 @@ importers:
   .:
     dependencies:
       ejs:
-        specifier: ^3.1.9
+        specifier: ^3.1.10
         version: 3.1.10
       express:
-        specifier: ^4.18.2
+        specifier: ^4.21.2
         version: 4.21.2
       express-session:
         specifier: ^1.18.1
