@@ -4,14 +4,17 @@ FROM node:20
 # Define o diretório de trabalho dentro do contêiner
 WORKDIR /app
 
-# Instala o pnpm globalmente
-RUN npm install -g pnpm
+# Atualiza o npm para a versão mais recente e instala o pnpm globalmente
+RUN npm install -g npm@latest && npm install -g pnpm
+
+# Instala o curl para o HEALTHCHECK
+RUN apt-get update && apt-get install -y curl && apt-get clean
 
 # Copia os arquivos de dependências
 COPY package*.json ./
 
-# Instala as dependências do projeto usando pnpm
-RUN pnpm install --prod  # Equivalente a --production no npm
+# Instala apenas as dependências de produção usando pnpm
+RUN pnpm install --prod
 
 # Copia o restante do código
 COPY . .
